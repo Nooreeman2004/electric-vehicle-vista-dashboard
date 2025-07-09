@@ -132,6 +132,17 @@ const EVDashboard: React.FC = () => {
     const g = svg.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
+    // Create tooltip
+    const tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("position", "absolute")
+      .style("background", "rgba(0, 0, 0, 0.8)")
+      .style("color", "white")
+      .style("padding", "10px")
+      .style("border-radius", "5px")
+      .style("pointer-events", "none")
+      .style("opacity", 0);
+
     // Bars representing cities
     g.selectAll(".bar")
       .data(chartData)
@@ -141,7 +152,23 @@ const EVDashboard: React.FC = () => {
       .attr("width", x.bandwidth())
       .attr("y", height)
       .attr("height", 0)
-      .attr("fill", d => colorScale(d.count))
+      .attr("fill", "#3B82F6")
+      .on("mouseover", function(event, d) {
+        tooltip.transition().duration(200).style("opacity", .9);
+        tooltip.html(`
+          <strong>${d.city}</strong><br/>
+          ${d.count} EVs registered<br/>
+          <em>${d.city} leads in EV adoption with ${d.count} registered vehicles</em>
+        `)
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 28) + "px");
+        
+        d3.select(this).style("opacity", 0.8);
+      })
+      .on("mouseout", function() {
+        tooltip.transition().duration(500).style("opacity", 0);
+        d3.select(this).style("opacity", 1);
+      })
       .transition()
       .duration(800)
       .attr("y", d => y(d.count))
@@ -205,6 +232,17 @@ const EVDashboard: React.FC = () => {
     const g = svg.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
+    // Create tooltip
+    const tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("position", "absolute")
+      .style("background", "rgba(0, 0, 0, 0.8)")
+      .style("color", "white")
+      .style("padding", "10px")
+      .style("border-radius", "5px")
+      .style("pointer-events", "none")
+      .style("opacity", 0);
+
     // Bars
     g.selectAll(".bar")
       .data(chartData)
@@ -215,6 +253,22 @@ const EVDashboard: React.FC = () => {
       .attr("y", height)
       .attr("height", 0)
       .attr("fill", "#3B82F6")
+      .on("mouseover", function(event, d) {
+        tooltip.transition().duration(200).style("opacity", .9);
+        tooltip.html(`
+          <strong>${d.makeModel}</strong><br/>
+          ${d.count} registered vehicles<br/>
+          <em>${d.makeModel} is among the most popular EV choices with ${d.count} registrations</em>
+        `)
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 28) + "px");
+        
+        d3.select(this).style("opacity", 0.8);
+      })
+      .on("mouseout", function() {
+        tooltip.transition().duration(500).style("opacity", 0);
+        d3.select(this).style("opacity", 1);
+      })
       .transition()
       .duration(800)
       .attr("y", d => y(d.count))
@@ -277,6 +331,17 @@ const EVDashboard: React.FC = () => {
     const g = svg.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
+    // Create tooltip
+    const tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("position", "absolute")
+      .style("background", "rgba(0, 0, 0, 0.8)")
+      .style("color", "white")
+      .style("padding", "10px")
+      .style("border-radius", "5px")
+      .style("pointer-events", "none")
+      .style("opacity", 0);
+
     topCities.forEach(([city, records]) => {
       const ranges = records.map(d => d['Electric Range']).sort(d3.ascending);
       const q1 = d3.quantile(ranges, 0.25)!;
@@ -294,7 +359,24 @@ const EVDashboard: React.FC = () => {
         .attr("width", x.bandwidth())
         .attr("height", y(q1) - y(q3))
         .attr("fill", "#60A5FA")
-        .attr("stroke", "#2563EB");
+        .attr("stroke", "#2563EB")
+        .on("mouseover", function(event) {
+          tooltip.transition().duration(200).style("opacity", .9);
+          tooltip.html(`
+            <strong>${city}</strong><br/>
+            Median Range: ${median} mi<br/>
+            Q1: ${q1} mi, Q3: ${q3} mi<br/>
+            <em>${city} EVs have a median range of ${median} miles with typical variation shown in the box plot</em>
+          `)
+          .style("left", (event.pageX + 10) + "px")
+          .style("top", (event.pageY - 28) + "px");
+          
+          d3.select(this).style("opacity", 0.8);
+        })
+        .on("mouseout", function() {
+          tooltip.transition().duration(500).style("opacity", 0);
+          d3.select(this).style("opacity", 1);
+        });
 
       // Median line
       g.append("line")
@@ -381,10 +463,37 @@ const EVDashboard: React.FC = () => {
       .enter().append("g")
       .attr("class", "arc");
 
+    // Create tooltip
+    const tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("position", "absolute")
+      .style("background", "rgba(0, 0, 0, 0.8)")
+      .style("color", "white")
+      .style("padding", "10px")
+      .style("border-radius", "5px")
+      .style("pointer-events", "none")
+      .style("opacity", 0);
+
     arcs.append("path")
       .attr("d", arc)
       .attr("fill", d => d.data.color)
       .style("opacity", 0)
+      .on("mouseover", function(event, d) {
+        tooltip.transition().duration(200).style("opacity", .9);
+        tooltip.html(`
+          <strong>${d.data.label}</strong><br/>
+          ${d.data.value} vehicles (${Math.round(d.data.value / filteredData.length * 100)}%)<br/>
+          <em>${d.data.label === 'CAFV Eligible' ? 'These vehicles qualify for clean fuel incentives' : 'These vehicles do not qualify for CAFV benefits'}</em>
+        `)
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 28) + "px");
+        
+        d3.select(this).style("opacity", 0.8);
+      })
+      .on("mouseout", function() {
+        tooltip.transition().duration(500).style("opacity", 0);
+        d3.select(this).style("opacity", 1);
+      })
       .transition()
       .duration(800)
       .style("opacity", 1)
@@ -476,6 +585,17 @@ const EVDashboard: React.FC = () => {
       .duration(1500)
       .attr("stroke-dashoffset", 0);
 
+    // Create tooltip
+    const tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("position", "absolute")
+      .style("background", "rgba(0, 0, 0, 0.8)")
+      .style("color", "white")
+      .style("padding", "10px")
+      .style("border-radius", "5px")
+      .style("pointer-events", "none")
+      .style("opacity", 0);
+
     // Data points
     g.selectAll(".dot")
       .data(chartData)
@@ -485,6 +605,22 @@ const EVDashboard: React.FC = () => {
       .attr("cy", d => y(d.count))
       .attr("r", 0)
       .attr("fill", "#1D4ED8")
+      .on("mouseover", function(event, d) {
+        tooltip.transition().duration(200).style("opacity", .9);
+        tooltip.html(`
+          <strong>${d.year}</strong><br/>
+          ${d.count} EVs registered<br/>
+          <em>Model year ${d.year} shows ${d.count > 20 ? 'strong' : 'moderate'} EV adoption with ${d.count} registrations</em>
+        `)
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 28) + "px");
+        
+        d3.select(this).style("opacity", 0.8);
+      })
+      .on("mouseout", function() {
+        tooltip.transition().duration(500).style("opacity", 0);
+        d3.select(this).style("opacity", 1);
+      })
       .transition()
       .delay(1500)
       .duration(500)
@@ -651,6 +787,17 @@ const EVDashboard: React.FC = () => {
     const g = svg.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
+    // Create tooltip
+    const tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("position", "absolute")
+      .style("background", "rgba(0, 0, 0, 0.8)")
+      .style("color", "white")
+      .style("padding", "10px")
+      .style("border-radius", "5px")
+      .style("pointer-events", "none")
+      .style("opacity", 0);
+
     // Stacked bars
     g.selectAll(".layer")
       .data(stack)
@@ -660,10 +807,27 @@ const EVDashboard: React.FC = () => {
       .selectAll("rect")
       .data(d => d)
       .enter().append("rect")
-      .attr("x", d => x(d.data.utility)!)
+      .attr("x", d => x(String(d.data.utility)) || 0)
       .attr("width", x.bandwidth())
       .attr("y", height)
       .attr("height", 0)
+      .on("mouseover", function(event, d) {
+        const value = d[1] - d[0];
+        tooltip.transition().duration(200).style("opacity", .9);
+        tooltip.html(`
+          <strong>${d.data.utility}</strong><br/>
+          ${stack.find(layer => layer.includes(d))?.key}: ${value} EVs<br/>
+          <em>This utility provider has ${value} registered ${stack.find(layer => layer.includes(d))?.key} vehicles</em>
+        `)
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 28) + "px");
+        
+        d3.select(this).style("opacity", 0.8);
+      })
+      .on("mouseout", function() {
+        tooltip.transition().duration(500).style("opacity", 0);
+        d3.select(this).style("opacity", 1);
+      })
       .transition()
       .duration(800)
       .attr("y", d => y(d[1]))
@@ -728,164 +892,165 @@ const EVDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex">
-        {/* Sidebar Filters */}
-        <div className="w-80 bg-slate-800/30 backdrop-blur-sm border-r border-blue-500/20 p-6 space-y-4 h-screen overflow-y-auto">
+      {/* Filters at the Top */}
+      <div className="px-6 pb-6">
+        <div className="bg-slate-800/30 backdrop-blur-sm border border-blue-500/20 rounded-lg p-6">
           <h2 className="text-xl font-semibold text-blue-300 mb-4">Filters</h2>
-          
-          {/* State Filter */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">State</label>
-            <select 
-              value={filters.state} 
-              onChange={(e) => setFilters({...filters, state: e.target.value})}
-              className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All States</option>
-              {uniqueStates.map(state => (
-                <option key={state} value={state}>{state}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* County Filter */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">County</label>
-            <select 
-              value={filters.county} 
-              onChange={(e) => setFilters({...filters, county: e.target.value})}
-              className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Counties</option>
-              {uniqueCounties.map(county => (
-                <option key={county} value={county}>{county}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* City Filter */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">City</label>
-            <select 
-              value={filters.city} 
-              onChange={(e) => setFilters({...filters, city: e.target.value})}
-              className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Cities</option>
-              {uniqueCities.map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Make Filter */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Make</label>
-            <select 
-              value={filters.make} 
-              onChange={(e) => setFilters({...filters, make: e.target.value})}
-              className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Makes</option>
-              {uniqueMakes.map(make => (
-                <option key={make} value={make}>{make}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Model Filter */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Model</label>
-            <select 
-              value={filters.model} 
-              onChange={(e) => setFilters({...filters, model: e.target.value})}
-              className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Models</option>
-              {uniqueModels.map(model => (
-                <option key={model} value={model}>{model}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* CAFV Toggle */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">CAFV Eligibility</label>
-            <div className="flex space-x-4">
-              <button
-                onClick={() => setFilters({...filters, cafv: null})}
-                className={`px-3 py-1 rounded text-sm ${filters.cafv === null ? 'bg-blue-600' : 'bg-slate-600'}`}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* State Filter */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">State</label>
+              <select 
+                value={filters.state} 
+                onChange={(e) => setFilters({...filters, state: e.target.value})}
+                className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                All
-              </button>
-              <button
-                onClick={() => setFilters({...filters, cafv: true})}
-                className={`px-3 py-1 rounded text-sm ${filters.cafv === true ? 'bg-green-600' : 'bg-slate-600'}`}
-              >
-                Eligible
-              </button>
-              <button
-                onClick={() => setFilters({...filters, cafv: false})}
-                className={`px-3 py-1 rounded text-sm ${filters.cafv === false ? 'bg-red-600' : 'bg-slate-600'}`}
-              >
-                Not Eligible
-              </button>
+                <option value="">All States</option>
+                {uniqueStates.map(state => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
             </div>
-          </div>
 
-          {/* Utility Provider Filter */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Utility Provider</label>
-            <select 
-              value={filters.utilityProvider} 
-              onChange={(e) => setFilters({...filters, utilityProvider: e.target.value})}
-              className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Providers</option>
-              {uniqueUtilities.map(utility => (
-                <option key={utility} value={utility}>{utility}</option>
-              ))}
-            </select>
+            {/* County Filter */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">County</label>
+              <select 
+                value={filters.county} 
+                onChange={(e) => setFilters({...filters, county: e.target.value})}
+                className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Counties</option>
+                {uniqueCounties.map(county => (
+                  <option key={county} value={county}>{county}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* City Filter */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">City</label>
+              <select 
+                value={filters.city} 
+                onChange={(e) => setFilters({...filters, city: e.target.value})}
+                className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Cities</option>
+                {uniqueCities.map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Make Filter */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Make</label>
+              <select 
+                value={filters.make} 
+                onChange={(e) => setFilters({...filters, make: e.target.value})}
+                className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Makes</option>
+                {uniqueMakes.map(make => (
+                  <option key={make} value={make}>{make}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Model Filter */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Model</label>
+              <select 
+                value={filters.model} 
+                onChange={(e) => setFilters({...filters, model: e.target.value})}
+                className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Models</option>
+                {uniqueModels.map(model => (
+                  <option key={model} value={model}>{model}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* CAFV Toggle */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">CAFV Eligibility</label>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setFilters({...filters, cafv: null})}
+                  className={`px-3 py-1 rounded text-sm ${filters.cafv === null ? 'bg-blue-600' : 'bg-slate-600'}`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setFilters({...filters, cafv: true})}
+                  className={`px-3 py-1 rounded text-sm ${filters.cafv === true ? 'bg-green-600' : 'bg-slate-600'}`}
+                >
+                  Eligible
+                </button>
+                <button
+                  onClick={() => setFilters({...filters, cafv: false})}
+                  className={`px-3 py-1 rounded text-sm ${filters.cafv === false ? 'bg-red-600' : 'bg-slate-600'}`}
+                >
+                  Not Eligible
+                </button>
+              </div>
+            </div>
+
+            {/* Utility Provider Filter */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Utility Provider</label>
+              <select 
+                value={filters.utilityProvider} 
+                onChange={(e) => setFilters({...filters, utilityProvider: e.target.value})}
+                className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Providers</option>
+                {uniqueUtilities.map(utility => (
+                  <option key={utility} value={utility}>{utility}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Main Content - Charts Grid */}
-        <div className="flex-1 p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Choropleth Map (EV count by city) */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={choroplethRef} width="500" height="300"></svg>
-            </div>
+      {/* Main Content - Charts Grid */}
+      <div className="px-6 pb-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          {/* Choropleth Map (EV count by city) */}
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-6 border border-blue-500/20">
+            <svg ref={choroplethRef} width="100%" height="350"></svg>
+          </div>
 
-            {/* Bar Chart */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={barChartRef} width="500" height="300"></svg>
-            </div>
+          {/* Bar Chart */}
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-6 border border-blue-500/20">
+            <svg ref={barChartRef} width="100%" height="350"></svg>
+          </div>
 
-            {/* Box Plot */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={boxPlotRef} width="500" height="300"></svg>
-            </div>
+          {/* Box Plot */}
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-6 border border-blue-500/20">
+            <svg ref={boxPlotRef} width="100%" height="350"></svg>
+          </div>
 
-            {/* Donut Chart */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={donutChartRef} width="400" height="300"></svg>
-            </div>
+          {/* Donut Chart */}
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-6 border border-blue-500/20">
+            <svg ref={donutChartRef} width="100%" height="350"></svg>
+          </div>
 
-            {/* Line Chart */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={lineChartRef} width="500" height="300"></svg>
-            </div>
+          {/* Line Chart */}
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-6 border border-blue-500/20">
+            <svg ref={lineChartRef} width="100%" height="350"></svg>
+          </div>
 
-            {/* Heatmap */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={heatmapRef} width="500" height="300"></svg>
-            </div>
+          {/* Heatmap */}
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-6 border border-blue-500/20">
+            <svg ref={heatmapRef} width="100%" height="350"></svg>
+          </div>
 
-            {/* Stacked Bar Chart - spans full width */}
-            <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={stackedBarRef} width="500" height="300"></svg>
-            </div>
+          {/* Stacked Bar Chart - spans full width */}
+          <div className="xl:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-lg p-6 border border-blue-500/20">
+            <svg ref={stackedBarRef} width="100%" height="350"></svg>
           </div>
         </div>
       </div>
