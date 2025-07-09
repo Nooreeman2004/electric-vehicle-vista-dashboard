@@ -53,6 +53,7 @@ const EVDashboard: React.FC = () => {
   });
 
   // Chart refs
+  const choroplethRef = useRef<SVGSVGElement>(null);
   const barChartRef = useRef<SVGSVGElement>(null);
   const boxPlotRef = useRef<SVGSVGElement>(null);
   const donutChartRef = useRef<SVGSVGElement>(null);
@@ -89,11 +90,87 @@ const EVDashboard: React.FC = () => {
   const uniqueModels = [...new Set(data.map(d => d.Model))];
   const uniqueUtilities = [...new Set(data.map(d => d['Electric Utility']))];
 
-  // Calculate KPIs
+  // Calculate KPIs from filtered data
   const totalEVs = filteredData.length;
-  const avgElectricRange = Math.round(filteredData.reduce((sum, d) => sum + d['Electric Range'], 0) / filteredData.length);
-  const cafvPercentage = Math.round((filteredData.filter(d => d['Clean Alternative Fuel Vehicle (CAFV) Eligibility'].includes('Eligible')).length / filteredData.length) * 100);
-  const avgMSRP = Math.round(filteredData.reduce((sum, d) => sum + d['Base MSRP'], 0) / filteredData.length);
+  const avgElectricRange = filteredData.length > 0 ? Math.round(filteredData.reduce((sum, d) => sum + d['Electric Range'], 0) / filteredData.length) : 0;
+  const cafvPercentage = filteredData.length > 0 ? Math.round((filteredData.filter(d => d['Clean Alternative Fuel Vehicle (CAFV) Eligibility'].includes('Eligible')).length / filteredData.length) * 100) : 0;
+  const avgMSRP = filteredData.length > 0 ? Math.round(filteredData.reduce((sum, d) => sum + d['Base MSRP'], 0) / filteredData.length) : 0;
+
+  // Choropleth Map: EV count by city
+  useEffect(() => {
+    if (!choroplethRef.current || filteredData.length === 0) return;
+
+    const svg = d3.select(choroplethRef.current);
+    svg.selectAll("*").remove();
+
+    const margin = { top: 20, right: 30, bottom: 40, left: 60 };
+    const width = 500 - margin.left - margin.right;
+    const height = 300 - margin.bottom - margin.top;
+
+    const cityCounts = d3.rollup(
+      filteredData,
+      v => v.length,
+      d => d.City
+    );
+
+    const chartData = Array.from(cityCounts, ([city, count]) => ({ city, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const x = d3.scaleBand()
+      .range([0, width])
+      .domain(chartData.map(d => d.city))
+      .padding(0.1);
+
+    const y = d3.scaleLinear()
+      .domain([0, d3.max(chartData, d => d.count)!])
+      .range([height, 0]);
+
+    const colorScale = d3.scaleSequential(d3.interpolateBlues)
+      .domain([0, d3.max(chartData, d => d.count)!]);
+
+    const g = svg.append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Bars representing cities
+    g.selectAll(".bar")
+      .data(chartData)
+      .enter().append("rect")
+      .attr("class", "bar")
+      .attr("x", d => x(d.city)!)
+      .attr("width", x.bandwidth())
+      .attr("y", height)
+      .attr("height", 0)
+      .attr("fill", d => colorScale(d.count))
+      .transition()
+      .duration(800)
+      .attr("y", d => y(d.count))
+      .attr("height", d => height - y(d.count));
+
+    // Axes
+    g.append("g")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x))
+      .selectAll("text")
+      .style("text-anchor", "end")
+      .attr("dx", "-.8em")
+      .attr("dy", ".15em")
+      .attr("transform", "rotate(-45)");
+
+    g.append("g")
+      .call(d3.axisLeft(y));
+
+    // Title
+    svg.append("text")
+      .attr("x", width / 2 + margin.left)
+      .attr("y", margin.top - 5)
+      .attr("text-anchor", "middle")
+      .style("font-size", "14px")
+      .style("font-weight", "bold")
+      .style("fill", "white")
+      .text("EV Count by City");
+
+  }, [filteredData]);
 
   // Bar Chart: Most popular EV makes and models
   useEffect(() => {
@@ -103,7 +180,7 @@ const EVDashboard: React.FC = () => {
     svg.selectAll("*").remove();
 
     const margin = { top: 20, right: 30, bottom: 60, left: 60 };
-    const width = 400 - margin.left - margin.right;
+    const width = 500 - margin.left - margin.right;
     const height = 300 - margin.bottom - margin.top;
 
     const makeModelCounts = d3.rollup(
@@ -138,19 +215,12 @@ const EVDashboard: React.FC = () => {
       .attr("y", height)
       .attr("height", 0)
       .attr("fill", "#3B82F6")
-      .on("mouseover", function(event, d) {
-        d3.select(this).attr("fill", "#1D4ED8");
-        // Add tooltip logic here
-      })
-      .on("mouseout", function() {
-        d3.select(this).attr("fill", "#3B82F6");
-      })
       .transition()
       .duration(800)
       .attr("y", d => y(d.count))
       .attr("height", d => height - y(d.count));
 
-    // X Axis
+    // Axes
     g.append("g")
       .attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(x))
@@ -158,11 +228,13 @@ const EVDashboard: React.FC = () => {
       .style("text-anchor", "end")
       .attr("dx", "-.8em")
       .attr("dy", ".15em")
-      .attr("transform", "rotate(-45)");
+      .attr("transform", "rotate(-45)")
+      .style("fill", "white");
 
-    // Y Axis
     g.append("g")
-      .call(d3.axisLeft(y));
+      .call(d3.axisLeft(y))
+      .selectAll("text")
+      .style("fill", "white");
 
     // Title
     svg.append("text")
@@ -171,6 +243,7 @@ const EVDashboard: React.FC = () => {
       .attr("text-anchor", "middle")
       .style("font-size", "14px")
       .style("font-weight", "bold")
+      .style("fill", "white")
       .text("Popular EV Makes & Models");
 
   }, [filteredData]);
@@ -183,7 +256,7 @@ const EVDashboard: React.FC = () => {
     svg.selectAll("*").remove();
 
     const margin = { top: 20, right: 30, bottom: 60, left: 60 };
-    const width = 400 - margin.left - margin.right;
+    const width = 500 - margin.left - margin.right;
     const height = 300 - margin.bottom - margin.top;
 
     const cityData = d3.group(filteredData, d => d.City);
@@ -251,10 +324,14 @@ const EVDashboard: React.FC = () => {
     // Axes
     g.append("g")
       .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(x));
+      .call(d3.axisBottom(x))
+      .selectAll("text")
+      .style("fill", "white");
 
     g.append("g")
-      .call(d3.axisLeft(y));
+      .call(d3.axisLeft(y))
+      .selectAll("text")
+      .style("fill", "white");
 
     // Title
     svg.append("text")
@@ -263,6 +340,7 @@ const EVDashboard: React.FC = () => {
       .attr("text-anchor", "middle")
       .style("font-size", "14px")
       .style("font-weight", "bold")
+      .style("fill", "white")
       .text("Electric Range by City");
 
   }, [filteredData]);
@@ -274,7 +352,7 @@ const EVDashboard: React.FC = () => {
     const svg = d3.select(donutChartRef.current);
     svg.selectAll("*").remove();
 
-    const width = 300;
+    const width = 400;
     const height = 300;
     const radius = Math.min(width, height) / 2 - 20;
     const innerRadius = radius * 0.6;
@@ -323,33 +401,25 @@ const EVDashboard: React.FC = () => {
       .attr("dy", "-0.5em")
       .style("font-size", "20px")
       .style("font-weight", "bold")
+      .style("fill", "white")
       .text(`${cafvPercentage}%`);
 
     g.append("text")
       .attr("text-anchor", "middle")
       .attr("dy", "1em")
       .style("font-size", "12px")
+      .style("fill", "white")
       .text("CAFV Eligible");
 
-    // Legend
-    const legend = svg.append("g")
-      .attr("transform", `translate(20, ${height - 40})`);
-
-    data.forEach((d, i) => {
-      const legendRow = legend.append("g")
-        .attr("transform", `translate(0, ${i * 20})`);
-
-      legendRow.append("rect")
-        .attr("width", 10)
-        .attr("height", 10)
-        .attr("fill", d.color);
-
-      legendRow.append("text")
-        .attr("x", 15)
-        .attr("y", 9)
-        .style("font-size", "12px")
-        .text(d.label);
-    });
+    // Title
+    svg.append("text")
+      .attr("x", width / 2)
+      .attr("y", 20)
+      .attr("text-anchor", "middle")
+      .style("font-size", "14px")
+      .style("font-weight", "bold")
+      .style("fill", "white")
+      .text("CAFV Eligibility");
 
   }, [filteredData, cafvPercentage]);
 
@@ -361,7 +431,7 @@ const EVDashboard: React.FC = () => {
     svg.selectAll("*").remove();
 
     const margin = { top: 20, right: 30, bottom: 40, left: 50 };
-    const width = 400 - margin.left - margin.right;
+    const width = 500 - margin.left - margin.right;
     const height = 300 - margin.bottom - margin.top;
 
     const yearCounts = d3.rollup(
@@ -423,10 +493,14 @@ const EVDashboard: React.FC = () => {
     // Axes
     g.append("g")
       .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(x).tickFormat(d3.format("d")));
+      .call(d3.axisBottom(x).tickFormat(d3.format("d")))
+      .selectAll("text")
+      .style("fill", "white");
 
     g.append("g")
-      .call(d3.axisLeft(y));
+      .call(d3.axisLeft(y))
+      .selectAll("text")
+      .style("fill", "white");
 
     // Title
     svg.append("text")
@@ -435,6 +509,7 @@ const EVDashboard: React.FC = () => {
       .attr("text-anchor", "middle")
       .style("font-size", "14px")
       .style("font-weight", "bold")
+      .style("fill", "white")
       .text("EV Registrations by Model Year");
 
   }, [filteredData]);
@@ -447,7 +522,7 @@ const EVDashboard: React.FC = () => {
     svg.selectAll("*").remove();
 
     const margin = { top: 20, right: 30, bottom: 60, left: 80 };
-    const width = 400 - margin.left - margin.right;
+    const width = 500 - margin.left - margin.right;
     const height = 300 - margin.bottom - margin.top;
 
     const cityMSRP = d3.rollup(
@@ -507,10 +582,14 @@ const EVDashboard: React.FC = () => {
     // Axes
     g.append("g")
       .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(x));
+      .call(d3.axisBottom(x))
+      .selectAll("text")
+      .style("fill", "white");
 
     g.append("g")
-      .call(d3.axisLeft(y));
+      .call(d3.axisLeft(y))
+      .selectAll("text")
+      .style("fill", "white");
 
     // Title
     svg.append("text")
@@ -519,6 +598,7 @@ const EVDashboard: React.FC = () => {
       .attr("text-anchor", "middle")
       .style("font-size", "14px")
       .style("font-weight", "bold")
+      .style("fill", "white")
       .text("Average MSRP by City");
 
   }, [filteredData]);
@@ -597,30 +677,13 @@ const EVDashboard: React.FC = () => {
       .style("text-anchor", "end")
       .attr("dx", "-.8em")
       .attr("dy", ".15em")
-      .attr("transform", "rotate(-45)");
+      .attr("transform", "rotate(-45)")
+      .style("fill", "white");
 
     g.append("g")
-      .call(d3.axisLeft(y));
-
-    // Legend
-    const legend = svg.append("g")
-      .attr("transform", `translate(${width - 150}, 30)`);
-
-    evTypes.forEach((type, i) => {
-      const legendRow = legend.append("g")
-        .attr("transform", `translate(0, ${i * 20})`);
-
-      legendRow.append("rect")
-        .attr("width", 10)
-        .attr("height", 10)
-        .attr("fill", color(type) as string);
-
-      legendRow.append("text")
-        .attr("x", 15)
-        .attr("y", 9)
-        .style("font-size", "10px")
-        .text(type.split(' ')[0]);
-    });
+      .call(d3.axisLeft(y))
+      .selectAll("text")
+      .style("fill", "white");
 
     // Title
     svg.append("text")
@@ -629,6 +692,7 @@ const EVDashboard: React.FC = () => {
       .attr("text-anchor", "middle")
       .style("font-size", "14px")
       .style("font-weight", "bold")
+      .style("fill", "white")
       .text("EV Count by Utility & Type");
 
   }, [filteredData]);
@@ -640,6 +704,28 @@ const EVDashboard: React.FC = () => {
         <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
           Electric Vehicle Registration Dashboard
         </h1>
+      </div>
+
+      {/* KPIs at the Top */}
+      <div className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 text-center shadow-lg">
+            <div className="text-3xl font-bold">{totalEVs.toLocaleString()}</div>
+            <div className="text-blue-100">Total EVs Registered</div>
+          </div>
+          <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg p-6 text-center shadow-lg">
+            <div className="text-3xl font-bold">{avgElectricRange}</div>
+            <div className="text-green-100">Avg Electric Range (mi)</div>
+          </div>
+          <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg p-6 text-center shadow-lg">
+            <div className="text-3xl font-bold">{cafvPercentage}%</div>
+            <div className="text-purple-100">CAFV Eligible</div>
+          </div>
+          <div className="bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg p-6 text-center shadow-lg">
+            <div className="text-3xl font-bold">${avgMSRP.toLocaleString()}</div>
+            <div className="text-orange-100">Avg Base MSRP</div>
+          </div>
+        </div>
       </div>
 
       <div className="flex">
@@ -763,57 +849,41 @@ const EVDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content - Charts Grid */}
         <div className="flex-1 p-6">
-          {/* KPIs */}
-          <div className="grid grid-cols-4 gap-6 mb-8">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold">{totalEVs.toLocaleString()}</div>
-              <div className="text-blue-100">Total EVs Registered</div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Choropleth Map (EV count by city) */}
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
+              <svg ref={choroplethRef} width="500" height="300"></svg>
             </div>
-            <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold">{avgElectricRange}</div>
-              <div className="text-green-100">Avg Electric Range (mi)</div>
-            </div>
-            <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold">{cafvPercentage}%</div>
-              <div className="text-purple-100">CAFV Eligible</div>
-            </div>
-            <div className="bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold">${avgMSRP.toLocaleString()}</div>
-              <div className="text-orange-100">Avg Base MSRP</div>
-            </div>
-          </div>
 
-          {/* Charts Grid */}
-          <div className="grid grid-cols-2 gap-6">
             {/* Bar Chart */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={barChartRef} width="400" height="300"></svg>
+              <svg ref={barChartRef} width="500" height="300"></svg>
             </div>
 
             {/* Box Plot */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={boxPlotRef} width="400" height="300"></svg>
+              <svg ref={boxPlotRef} width="500" height="300"></svg>
             </div>
 
             {/* Donut Chart */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={donutChartRef} width="300" height="300"></svg>
+              <svg ref={donutChartRef} width="400" height="300"></svg>
             </div>
 
             {/* Line Chart */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={lineChartRef} width="400" height="300"></svg>
+              <svg ref={lineChartRef} width="500" height="300"></svg>
             </div>
 
             {/* Heatmap */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
-              <svg ref={heatmapRef} width="400" height="300"></svg>
+              <svg ref={heatmapRef} width="500" height="300"></svg>
             </div>
 
-            {/* Stacked Bar Chart */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
+            {/* Stacked Bar Chart - spans full width */}
+            <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20">
               <svg ref={stackedBarRef} width="500" height="300"></svg>
             </div>
           </div>
